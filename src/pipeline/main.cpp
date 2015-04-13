@@ -29,7 +29,7 @@
 int main(int argc, char* argv[]){
 
     //Variable decleration
-    //Pipeline pip;
+    Pipeline pip;
 
     std::vector< PointCloud< PointXYZRGB > > clouds;
 
@@ -50,15 +50,15 @@ int main(int argc, char* argv[]){
         io::loadPLYFile ( inputFile , *cloud );
 
         //removeStatisticalOutliers
-        //pip.removeStatisticalOutliers( cloud );
+        pip.removeStatisticalOutliers( cloud );
 
         //Plane estimation, keep surfaces that are not plane(plain?)
-        //pip.planeEstimation( cloud );
+        pip.planeEstimation( cloud );
 
 
         //ICP with cloud transformation. The ICP is performed on every cloud after the first compared to the first
         if(i>0){
-            //pip.ICPTransform( cloud, firstElem );
+            pip.ICPTransform( cloud, firstElem );
             clouds.push_back( * cloud );
         }else{
             clouds.push_back( * cloud );
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]){
         }
 
         //fpfh acquisition
-        //pip.fpfhEst(cloud);
+        pip.fpfhEst(cloud);
            
     }   
 
