@@ -58,6 +58,9 @@ int main(int argc, char* argv[]){
         //ICP with cloud transformation. The ICP is performed on every cloud after the first compared to the first
         if(i>0){
             pip.ICPTransform( cloud, firstElem );
+
+
+
             clouds.push_back( * cloud );
         }else{
             clouds.push_back( * cloud );
@@ -67,6 +70,9 @@ int main(int argc, char* argv[]){
         //fpfh acquisition
         histograms.push_back( pip.fpfhEst( cloud ) );
         cout << histograms.size() << " size of hisogram brah   " << endl;
+
+        pip.colourInformationExtractor(cloud);
+
     }   
 
 }

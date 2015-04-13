@@ -21,6 +21,10 @@
 // FPFH headers
 #include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
+// Nearest search
+#include <pcl/point_cloud.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
 
 using namespace std;
 using namespace pcl;
@@ -32,6 +36,7 @@ class Pipeline
         inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
         inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
+        inline void colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
 
 
     protected:
@@ -46,6 +51,8 @@ class Pipeline
         static const double NeighborDev   = 1.5;
         static const int    MaxIterations = 100;
         static const double DistThreshold = .02;
+        static const int    K             = 10;
+        static const float radius         = 256.0f;
 };
 // Remove statistical outliers from cloud
 // new cloud overwrites old one
@@ -102,7 +109,6 @@ inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud,
 }
 inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
     if(debug){
-        cout << "Displaying " << name << endl;
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
         viewer->addPointCloud< pcl::PointXYZRGB > ( cloud ,name );
         viewer->spin();
@@ -110,8 +116,8 @@ inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, con
 }
 
 // Fast point feature histogram for pointcloud cloud
- inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
-       
+inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
+
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
 
@@ -135,5 +141,24 @@ inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, con
     fpfh.compute (*fpfhs);
 
     return fpfh;
+}
+// Extract colour information from the neighbors of every pixel
+inline void Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
+
+    pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
+    kdtree.setInputCloud (cloud);
+
+    pcl::PointXYZRGB searchPoint = cloud->points[0];
+
+    std::vector<int> pointIdxNKNSearch(K);
+    std::vector<float> pointNKNSquaredDistance(K);
+
+    if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
+        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
+            std::cout << "    "  <<   cloud->points[ pointIdxNKNSearch[i] ].x 
+                << " " << cloud->points[ pointIdxNKNSearch[i] ].y 
+                << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
+                << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;
+    }
 }
 #endif 
