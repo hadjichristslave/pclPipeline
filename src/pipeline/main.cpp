@@ -31,7 +31,8 @@ int main(int argc, char* argv[]){
     //Variable decleration
     Pipeline pip;
 
-    std::vector< PointCloud< PointXYZRGB > > clouds;
+    vector< PointCloud< PointXYZRGB > > clouds;
+    vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> > histograms;
 
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
 
@@ -66,7 +67,7 @@ int main(int argc, char* argv[]){
         }
 
         //fpfh acquisition
-        pip.fpfhEst(cloud);
+        histograms.push_back( pip.fpfhEst(cloud) );
            
     }   
 
