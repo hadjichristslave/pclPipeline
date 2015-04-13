@@ -38,9 +38,7 @@ int main(int argc, char* argv[]){
 
     // Cloud loading
     for(int i=0;i<5;i++){
-        cout <<" i is : " << i;
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
-        cout << "stuff " << endl;
         string inputFile = "../resources/pipeline/clouds/cloudsmall";
         std::ostringstream ss;
         ss << i;
@@ -67,8 +65,8 @@ int main(int argc, char* argv[]){
         }
 
         //fpfh acquisition
-        histograms.push_back( pip.fpfhEst(cloud) );
-           
+        histograms.push_back( pip.fpfhEst( cloud ) );
+        cout << histograms.size() << " size of hisogram brah   " << endl;
     }   
 
 }
