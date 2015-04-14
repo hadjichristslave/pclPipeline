@@ -23,6 +23,7 @@
 // FPFH headers
 #include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
+#include <opencv2/opencv.hpp>
 // Nearest search
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -41,8 +42,9 @@ class Pipeline
         inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
         inline const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
-        inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
+        inline vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
+        inline double histogramCompare( vector<double> a, vector<double > b);
         inline int getBin(int DiscR, int DiscG, int DiscB);
         inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
@@ -144,7 +146,7 @@ inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, con
 }
 
 // Fast point feature histogram for pointcloud cloud
-inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
+inline vector < FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
 
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
@@ -168,15 +170,18 @@ inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  Pipeline::fpfh
     fpfh.setRadiusSearch (0.05);
     fpfh.compute (*fpfhs);
 
-    return fpfh;
+    vector < FPFHEstimation< PointXYZRGB, PointNormal, FPFHSignature33 > > vec;
+    return vec;
+    //return fpfh;
 }
 // Extract colour information from the neighbors of every pixel
 inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
+    // Init vars
     vector< vector< int > > colourDistributions;
     colourDistributions.resize( cloud->points.size());
     for(int i=0;i<cloud->points.size();i++)
-        colourDistributions[i].resize(colourBins*colourBins*colourBins,0);
-    
+        colourDistributions[i].resize(colourBins*colourBins*colourBins,0); 
+
     pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
     kdtree.setInputCloud (cloud);
 
@@ -188,7 +193,6 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
         if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
             for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
                 PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[j] ];
-                cout << " test" << endl;
                 colourDistributions[i][getColourBins( (int)p.r , (int)p.g, (int)p.b)]++;
             }
         }
@@ -213,6 +217,33 @@ inline int Pipeline::getColourBins(int r, int g, int b){
     int gbin = getBinIndex(g);
     int bbin = getBinIndex(b);
     return getBin(rbin , gbin , bbin);
+}
+
+inline double Pipeline::histogramCompare( vector<double > a, vector<double> b){
+    char testArr1[4] = {12, 10, 11, 11};
+    char testArr2[4] = {12, 0, 11, 0};
+    cv::Mat M1 = cv::Mat(1,4,CV_8UC1, testArr1);
+    cv::Mat M2 = cv::Mat(1,4,CV_8UC1, testArr2);
+
+    int histSize = 4;
+    float range[] = {0, 20};
+    const float* histRange = {range};
+    bool uniform = true;
+    bool accumulate = false;
+    cv::Mat a1_hist, a2_hist;
+
+    cv::calcHist(&M1, 1, 0, cv::Mat(), a1_hist, 1, &histSize, &histRange, uniform, accumulate );
+    cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRange, uniform, accumulate );
+
+    double compar_c = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
+    double compar_chi = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
+    double compar_bh = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
+    double compar_i = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
+    cout << "compare(CV_COMP_CORREL): " << compar_c << "\n";
+    cout << "compare(CV_COMP_CHISQR): " << compar_chi << "\n";
+    cout << "compare(CV_COMP_BHATTACHARYYA): " << compar_bh << "\n";
+    cout << "compare(CV_COMP_INTERSECT): " << compar_i << "\n";
+
 }
 
 #endif 

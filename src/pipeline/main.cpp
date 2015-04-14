@@ -51,9 +51,9 @@ int main(int argc, char* argv[]){
  
 
     //Variables decleration
-    Pipeline< PointXYZRGB >  pip;
+    Pipeline  pip;
     vector< PointCloud< PointXYZRGB > > clouds;
-    vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> > histograms;
+    vector <vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> > > histograms;
     colourCounts  colCounts;
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
 
@@ -96,6 +96,8 @@ int main(int argc, char* argv[]){
         // Colour information extraction
         // RGB colour spectrum will be discretized into N bins
         colCounts.push_back(pip.colourInformationExtractor(cloud));
+        std::vector<double> a;
+        pip.histogramCompare(a,a);
 
     }   
 
