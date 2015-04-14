@@ -23,6 +23,7 @@
 // --> extract Point clouds data                     //
 //---------------------------------------------------//
 
+typedef vector < vector < int > > colourCounts;
 
 //using namespace pcl;
 //using namespace std;
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]){
 
     vector< PointCloud< PointXYZRGB > > clouds;
     vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> > histograms;
+    colourCounts colCounts;
 
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
 
@@ -47,7 +49,6 @@ int main(int argc, char* argv[]){
 
         //Load the cloud named inputFile
         io::loadPLYFile ( inputFile , *cloud );
-
         //removeStatisticalOutliers
         pip.removeStatisticalOutliers( cloud );
 
@@ -58,9 +59,6 @@ int main(int argc, char* argv[]){
         //ICP with cloud transformation. The ICP is performed on every cloud after the first compared to the first
         if(i>0){
             pip.ICPTransform( cloud, firstElem );
-
-
-
             clouds.push_back( * cloud );
         }else{
             clouds.push_back( * cloud );
@@ -69,8 +67,10 @@ int main(int argc, char* argv[]){
 
         //fpfh acquisition
         histograms.push_back( pip.fpfhEst( cloud ) );
-        cout << histograms.size() << " size of hisogram brah   " << endl;
 
+
+        // Colour information extraction
+        // RGB colour spectrum will be discretized into N bins
         pip.colourInformationExtractor(cloud);
 
     }   

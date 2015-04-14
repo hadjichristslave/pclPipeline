@@ -31,31 +31,45 @@ using namespace pcl;
 class Pipeline 
 {
     public:
+        inline Pipeline();
         inline const void view( const PointCloud< PointXYZRGB >::Ptr cloud , const string name);
         inline const void removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud);
         inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
         inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline void colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
-
-
-    protected:
-        std::string mName; 
+        inline int getBin(int DiscR, int DiscG, int DiscB);
+        inline void getColourBins();
+        inline int getBinIndex(int r);
 
     private:
         //TODO must put those in a config file
         // Config options for the filtes
         static const bool   debug         = true;
-        static const double planeCoverage = .3;
+        //stat outlier removal
         static const int    Neighbors     = 50;
         static const double NeighborDev   = 1.5;
+        //Plane estimation
+        static const double planeCoverage = .3;
         static const int    MaxIterations = 100;
         static const double DistThreshold = .02;
+        //KD tree search
         static const int    K             = 10;
-        static const float radius         = 256.0f;
+        // Discretization of colours. each part of RGB spectrum will be discretized into colourBins parts
+        // Any value above creates too sparse a matrix to be usefull
+        static const int    colourBins    = 4;
+        static const int    RGBMIN        = 0;
+        static const int    RGBMAX        = 255;
+        vector<int> bins;
 };
+inline Pipeline::Pipeline(void){
+    int step = (int)(RGBMAX - RGBMIN)/colourBins;
+    int curStep =step;
+    for( int i=1;i<colourBins;i++, curStep+=step)
+        bins.push_back( curStep);   
+}
+
 // Remove statistical outliers from cloud
-// new cloud overwrites old one
 inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
     PointCloud<PointXYZRGB>::Ptr m_ptrCloud(cloud);
     StatisticalOutlierRemoval<PointXYZRGB> sor;
@@ -65,7 +79,6 @@ inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >
     sor.filter ( * cloud); 
 }
 /// Do plane estimation on the cloud.
-// New cloud overwrites old
 inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
     PointCloud<PointXYZRGB>::Ptr cloud_f (new PointCloud< PointXYZRGB >);
     SACSegmentation<PointXYZRGB> seg;
@@ -108,11 +121,9 @@ inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud,
     copyPointCloud( othercloud, * cloud );
 }
 inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
-    if(debug){
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
         viewer->addPointCloud< pcl::PointXYZRGB > ( cloud ,name );
         viewer->spin();
-    }
 }
 
 // Fast point feature histogram for pointcloud cloud
@@ -154,11 +165,31 @@ inline void Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB 
     std::vector<float> pointNKNSquaredDistance(K);
 
     if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
-        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
-            std::cout << "    "  <<   cloud->points[ pointIdxNKNSearch[i] ].x 
-                << " " << cloud->points[ pointIdxNKNSearch[i] ].y 
-                << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
-                << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;
+        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i){
+            PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[i] ];
+            
+            cout << " r " << (int)p.r << " G " << (int)p.g << " B " << (int)p.b << endl;
+        }
     }
 }
+
+// Get the bin given the discretized RGB values 
+// More info on http://en.wikipedia.org/wiki/Color_histogram
+inline int Pipeline::getBin(int DiscR, int DiscG, int DiscB){ 
+    return colourBins*colourBins*DiscR + colourBins*DiscG + DiscB;
+}
+inline int Pipeline::getBinIndex(int r){
+    for(int i=0;i<bins.size();i++)
+        if( r<bins[i]) return i;
+    return bins.size()-1;
+}
+// The number of colourBins defines in how many values the rgb spectrum will be divided.
+// The idea is to discretize the spectrum and find to what bin each particle belongs
+inline void Pipeline::getColourBins(int r, int g, int b){
+    int rbin = getBinIndex(r);
+    int gbin = getBinIndex(g);
+    int bbin = getBinIndex(b);
+    return betBin(rbin , gbin , bbin);
+}
+
 #endif 
