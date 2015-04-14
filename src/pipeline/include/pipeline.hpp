@@ -14,6 +14,8 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/extract_indices.h>
+//Downsampling headers
+#include <pcl/filters/voxel_grid.h>
 // ICP headers
 #include <pcl/registration/icp.h>
 #include <Eigen/Geometry> 
@@ -35,15 +37,15 @@ class Pipeline
         inline const void view( const PointCloud< PointXYZRGB >::Ptr cloud , const string name);
         inline const void removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud);
         inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
+        inline const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
         inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline void colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline int getBin(int DiscR, int DiscG, int DiscB);
-        inline void getColourBins();
+        inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
 
     private:
-        //TODO must put those in a config file
         // Config options for the filtes
         static const bool   debug         = true;
         //stat outlier removal
@@ -77,6 +79,17 @@ inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >
     sor.setMeanK (Neighbors);
     sor.setStddevMulThresh (NeighborDev);
     sor.filter ( * cloud); 
+}
+// Downsample using voxel grid downsampling 
+// Leafzise around .1 is ok
+inline const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize){
+    cout << "before "  << cloud->points.size() << " points"<< endl;
+    pcl::VoxelGrid<PointXYZRGB> vg;
+    vg.setInputCloud (cloud);
+    vg.setLeafSize (leafSize, leafSize, leafSize);
+    vg.setDownsampleAllData (true);
+    vg.filter (*cloud); 
+    cout << cloud->points.size () << " points\n";
 }
 /// Do plane estimation on the cloud.
 inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
@@ -159,16 +172,16 @@ inline void Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB 
     pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
     kdtree.setInputCloud (cloud);
 
-    pcl::PointXYZRGB searchPoint = cloud->points[0];
-
     std::vector<int> pointIdxNKNSearch(K);
     std::vector<float> pointNKNSquaredDistance(K);
 
-    if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
-        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i){
-            PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[i] ];
-            
-            cout << " r " << (int)p.r << " G " << (int)p.g << " B " << (int)p.b << endl;
+    for(int i=0;i< cloud->points.size();i++){
+        pcl::PointXYZRGB searchPoint = cloud->points[i];
+        if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
+            for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i){
+                PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[i] ];
+                getColourBins( (int)p.r , (int)p.g, (int)p.b); 
+            }
         }
     }
 }
@@ -185,11 +198,11 @@ inline int Pipeline::getBinIndex(int r){
 }
 // The number of colourBins defines in how many values the rgb spectrum will be divided.
 // The idea is to discretize the spectrum and find to what bin each particle belongs
-inline void Pipeline::getColourBins(int r, int g, int b){
+inline int Pipeline::getColourBins(int r, int g, int b){
     int rbin = getBinIndex(r);
     int gbin = getBinIndex(g);
     int bbin = getBinIndex(b);
-    return betBin(rbin , gbin , bbin);
+    return getBin(rbin , gbin , bbin);
 }
 
 #endif 

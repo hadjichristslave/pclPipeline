@@ -5,7 +5,9 @@
 #include <pcl/io/pcd_io.h> 
 #include <pcl/io/ply_io.h> 
 #include <pcl/io/io.h> 
+#include <libconfig.h>
 #include "include/pipeline.hpp"
+#include <stdlib.h>     /* atof */
 
 
 // Main  function is the core of the pipeline.
@@ -25,11 +27,32 @@
 
 typedef vector < vector < int > > colourCounts;
 
-//using namespace pcl;
-//using namespace std;
 int main(int argc, char* argv[]){
 
-    //Variable decleration
+    // Read the configuration file
+    config_t cfg, *cf;
+    const config_setting_t *retries;
+    const char *base = NULL;
+
+
+    cf = &cfg;
+    config_init(cf);
+
+    if (!config_read_file(cf, "../src/pipeline/config/config.cfg")) {
+        fprintf(stderr, "%s:%d - %s\n",
+                config_error_file(cf),
+                config_error_line(cf),
+                config_error_text(cf));
+        config_destroy(cf);
+        return(EXIT_FAILURE);
+    }
+    config_lookup_string(cf, "leafSize", &base);
+    double leafSize;
+    leafSize  = atof(base);
+    cout << " leaf size" << leafSize << endl;
+
+
+    //Pipeline decleration
     Pipeline pip;
 
     vector< PointCloud< PointXYZRGB > > clouds;
@@ -52,6 +75,10 @@ int main(int argc, char* argv[]){
         //removeStatisticalOutliers
         pip.removeStatisticalOutliers( cloud );
 
+        cout << " downsampling with leaf size " << leafSize << endl;
+        //Downsample the cloud
+        pip.downsample(cloud, leafSize);
+
         //Plane estimation, keep surfaces that are not plane(plain?)
         pip.planeEstimation( cloud );
 
@@ -71,7 +98,7 @@ int main(int argc, char* argv[]){
 
         // Colour information extraction
         // RGB colour spectrum will be discretized into N bins
-        pip.colourInformationExtractor(cloud);
+        //pip.colourInformationExtractor(cloud);
 
     }   
 
