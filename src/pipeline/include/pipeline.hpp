@@ -30,7 +30,9 @@
 
 using namespace std;
 using namespace pcl;
-class Pipeline 
+
+
+class Pipeline
 {
     public:
         inline Pipeline();
@@ -40,7 +42,7 @@ class Pipeline
         inline const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
         inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
-        inline void colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
+        inline vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline int getBin(int DiscR, int DiscG, int DiscB);
         inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
@@ -64,14 +66,16 @@ class Pipeline
         static const int    RGBMAX        = 255;
         vector<int> bins;
 };
+
 inline Pipeline::Pipeline(void){
     int step = (int)(RGBMAX - RGBMIN)/colourBins;
     int curStep =step;
     for( int i=1;i<colourBins;i++, curStep+=step)
-        bins.push_back( curStep);   
+        bins.push_back( curStep);
 }
 
 // Remove statistical outliers from cloud
+
 inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
     PointCloud<PointXYZRGB>::Ptr m_ptrCloud(cloud);
     StatisticalOutlierRemoval<PointXYZRGB> sor;
@@ -167,8 +171,12 @@ inline FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  Pipeline::fpfh
     return fpfh;
 }
 // Extract colour information from the neighbors of every pixel
-inline void Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
-
+inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
+    vector< vector< int > > colourDistributions;
+    colourDistributions.resize( cloud->points.size());
+    for(int i=0;i<cloud->points.size();i++)
+        colourDistributions[i].resize(colourBins*colourBins*colourBins,0);
+    
     pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
     kdtree.setInputCloud (cloud);
 
@@ -178,12 +186,14 @@ inline void Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB 
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
         if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
-            for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i){
-                PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[i] ];
-                getColourBins( (int)p.r , (int)p.g, (int)p.b); 
+            for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
+                PointXYZRGB  p = cloud->points[ pointIdxNKNSearch[j] ];
+                cout << " test" << endl;
+                colourDistributions[i][getColourBins( (int)p.r , (int)p.g, (int)p.b)]++;
             }
         }
     }
+    return colourDistributions;
 }
 
 // Get the bin given the discretized RGB values 
