@@ -96,8 +96,6 @@ int main(int argc, char* argv[]){
         // Colour information extraction
         // RGB colour spectrum will be discretized into N bins
         colCounts.push_back(pip.colourInformationExtractor(cloud));
-        std::vector<double> a;
-        pip.histogramCompare(a,a);
 
     }   
 

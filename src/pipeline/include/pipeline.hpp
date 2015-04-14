@@ -235,15 +235,16 @@ inline double Pipeline::histogramCompare( vector<double > a, vector<double> b){
     cv::calcHist(&M1, 1, 0, cv::Mat(), a1_hist, 1, &histSize, &histRange, uniform, accumulate );
     cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRange, uniform, accumulate );
 
-    double compar_c = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
-    double compar_chi = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
-    double compar_bh = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
-    double compar_i = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
+    double compar_c      = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
+    double compar_chi    = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
+    double compar_bh     = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
+    double compar_i      = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
+    double compar_hell   = cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
     cout << "compare(CV_COMP_CORREL): " << compar_c << "\n";
     cout << "compare(CV_COMP_CHISQR): " << compar_chi << "\n";
     cout << "compare(CV_COMP_BHATTACHARYYA): " << compar_bh << "\n";
     cout << "compare(CV_COMP_INTERSECT): " << compar_i << "\n";
-
+    cout << "compare(CV_COMP_HELLINGER) : " << compar_hell << "\n";
 }
 
 #endif 
