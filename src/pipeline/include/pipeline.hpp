@@ -1,10 +1,14 @@
 #ifndef PIPELINE_H 
 #define PIPELINE_H
 
+
+#include <typeinfo>
 // Cloud viewing headers
 #include <pcl/visualization/cloud_viewer.h>
 // Cloud loading headers
 #include <iostream>
+#include <algorithm>
+#include <vector>
 // Statistical outlier removal headers
 #include <pcl/point_types.h>
 #include <pcl/filters/statistical_outlier_removal.h>
@@ -44,7 +48,7 @@ class Pipeline
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
         inline vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
-        inline double histogramCompare( vector<double> a, vector<double > b);
+        inline double histogramCompare( float histA[33], float histB[33]);
         inline int getBin(int DiscR, int DiscG, int DiscB);
         inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
@@ -67,6 +71,9 @@ class Pipeline
         static const int    RGBMIN        = 0;
         static const int    RGBMAX        = 255;
         vector<int> bins;
+        std::vector<int> pointIdxNKNSearch;
+        std::vector<float> pointNKNSquaredDistance;
+        pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
 };
 
 inline Pipeline::Pipeline(void){
@@ -74,6 +81,13 @@ inline Pipeline::Pipeline(void){
     int curStep =step;
     for( int i=1;i<colourBins;i++, curStep+=step)
         bins.push_back( curStep);
+
+
+
+    pointIdxNKNSearch.resize(K);
+    pointNKNSquaredDistance.resize(K);
+
+
 }
 
 // Remove statistical outliers from cloud
@@ -170,6 +184,17 @@ inline vector < FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> >  Pip
     fpfh.setRadiusSearch (0.05);
     fpfh.compute (*fpfhs);
 
+    kdtree.setInputCloud (cloud);
+    for(int i=0;i< cloud->points.size();i++){
+        pcl::PointXYZRGB searchPoint = cloud->points[i];
+        float currentHist[33] = { * fpfhs->points[i].histogram };
+        if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+            for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
+                 float neighborHist[33] = { * fpfhs->points[ pointIdxNKNSearch[j] ].histogram } ;
+                 histogramCompare(currentHist, neighborHist);
+            }
+    }
+    
     vector < FPFHEstimation< PointXYZRGB, PointNormal, FPFHSignature33 > > vec;
     return vec;
     //return fpfh;
@@ -181,12 +206,12 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
     colourDistributions.resize( cloud->points.size());
     for(int i=0;i<cloud->points.size();i++)
         colourDistributions[i].resize(colourBins*colourBins*colourBins,0); 
+    
 
-    pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
+    //Find NN's. It must be noted that the 10 Nearest neighbors might be light years away
+    // Positionsal(XYZ) as well as ANGULAR(FPFH) and even COLOUR information will diverge from close Neighbors have
+    // and that will cause the process to cluster the points in different clusters
     kdtree.setInputCloud (cloud);
-
-    std::vector<int> pointIdxNKNSearch(K);
-    std::vector<float> pointNKNSquaredDistance(K);
 
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
@@ -219,14 +244,17 @@ inline int Pipeline::getColourBins(int r, int g, int b){
     return getBin(rbin , gbin , bbin);
 }
 
-inline double Pipeline::histogramCompare( vector<double > a, vector<double> b){
-    char testArr1[4] = {12, 10, 11, 11};
-    char testArr2[4] = {12, 0, 11, 0};
-    cv::Mat M1 = cv::Mat(1,4,CV_8UC1, testArr1);
-    cv::Mat M2 = cv::Mat(1,4,CV_8UC1, testArr2);
+inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
+    const int N = sizeof(histA) / sizeof(int);
+    float maxA = *std::max_element(histA, histA+N);
+    float maxB = *std::max_element(histB, histB+N);
+    float max = maxA>maxB?maxA:maxB;
 
-    int histSize = 4;
-    float range[] = {0, 20};
+    cv::Mat M1 = cv::Mat(1,33,CV_8UC1, histA);
+    cv::Mat M2 = cv::Mat(1,33,CV_8UC1, histB);
+
+    int histSize = 32;
+    float range[] = {0, max+1};
     const float* histRange = {range};
     bool uniform = true;
     bool accumulate = false;
@@ -245,6 +273,7 @@ inline double Pipeline::histogramCompare( vector<double > a, vector<double> b){
     cout << "compare(CV_COMP_BHATTACHARYYA): " << compar_bh << "\n";
     cout << "compare(CV_COMP_INTERSECT): " << compar_i << "\n";
     cout << "compare(CV_COMP_HELLINGER) : " << compar_hell << "\n";
+    return 0.0;
 }
 
 #endif 
