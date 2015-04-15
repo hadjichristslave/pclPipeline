@@ -58,7 +58,7 @@ int main(int argc, char* argv[]){
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
 
     // Cloud loading
-    for(int i=0;i<5;i++){
+    for(int i=0;i<1;i++){
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
         string inputFile = "../resources/pipeline/clouds/cloudsmall";
         std::ostringstream ss;

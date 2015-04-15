@@ -154,9 +154,9 @@ inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud,
     copyPointCloud( othercloud, * cloud );
 }
 inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
-        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-        viewer->addPointCloud< pcl::PointXYZRGB > ( cloud ,name );
-        viewer->spin();
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->addPointCloud< pcl::PointXYZRGB > ( cloud ,name );
+    viewer->spin();
 }
 
 // Fast point feature histogram for pointcloud cloud
@@ -187,14 +187,23 @@ inline vector < FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> >  Pip
     kdtree.setInputCloud (cloud);
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
-        float currentHist[33] = { * fpfhs->points[i].histogram };
+        float currentHist[33];
+        for (int o=0;o<33;o++)
+            currentHist[o] = fpfhs->points[i].histogram[o];
+//        cout << " comparing histogram : "  << fpfhs->points[i] << endl << endl;
         if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
             for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
-                 float neighborHist[33] = { * fpfhs->points[ pointIdxNKNSearch[j] ].histogram } ;
-                 histogramCompare(currentHist, neighborHist);
+                if (j==i)
+                    continue;
+//                cout << " i is : "  << i << " j is " << j << endl << endl;
+                float neighborHist[33];
+//                cout<< " with histogram : " << fpfhs->points[ pointIdxNKNSearch[j]] << endl <<  endl;
+                for(int o=0;o<33;o++)
+                    neighborHist[o] = fpfhs->points[ pointIdxNKNSearch[j]].histogram[o];
+                histogramCompare(currentHist, neighborHist);
             }
     }
-    
+
     vector < FPFHEstimation< PointXYZRGB, PointNormal, FPFHSignature33 > > vec;
     return vec;
     //return fpfh;
@@ -206,7 +215,7 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
     colourDistributions.resize( cloud->points.size());
     for(int i=0;i<cloud->points.size();i++)
         colourDistributions[i].resize(colourBins*colourBins*colourBins,0); 
-    
+
 
     //Find NN's. It must be noted that the 10 Nearest neighbors might be light years away
     // Positionsal(XYZ) as well as ANGULAR(FPFH) and even COLOUR information will diverge from close Neighbors have
@@ -250,29 +259,49 @@ inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
     float maxB = *std::max_element(histB, histB+N);
     float max = maxA>maxB?maxA:maxB;
 
-    cv::Mat M1 = cv::Mat(1,33,CV_8UC1, histA);
-    cv::Mat M2 = cv::Mat(1,33,CV_8UC1, histB);
+    for(int i=0;i<33;i++){  
+      if(histA[i] != histA[i])
+          histA[i] =0.0;
+      if(histB[i] != histB[i])
+          histB[i] =0.0;
+  }
 
-    int histSize = 32;
-    float range[] = {0, max+1};
-    const float* histRange = {range};
+    cv::Mat M1 = cv::Mat(1,33, cv::DataType<float>::type , histA);
+    cv::Mat M2 = cv::Mat(1,33, cv::DataType<float>::type , histB);
+
+    int histSize = 33;;
+    float rangeA[] = {0, maxA+1};
+    float rangeB[] = {0, maxB+1};
+    const float* histRangeA = {rangeA};
+    const float* histRangeB = {rangeB};
     bool uniform = true;
     bool accumulate = false;
     cv::Mat a1_hist, a2_hist;
 
-    cv::calcHist(&M1, 1, 0, cv::Mat(), a1_hist, 1, &histSize, &histRange, uniform, accumulate );
-    cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRange, uniform, accumulate );
+    cv::calcHist(&M1, 1, 0, cv::Mat(), a1_hist, 1, &histSize, &histRangeA, uniform, accumulate );
+    normalize(a1_hist, a1_hist,  0, 1, CV_MINMAX);
+    cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRangeB, uniform, accumulate );
+    normalize(a2_hist, a2_hist,  0, 1, CV_MINMAX);
 
-    double compar_c      = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
-    double compar_chi    = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
-    double compar_bh     = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
-    double compar_i      = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
-    double compar_hell   = cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
-    cout << "compare(CV_COMP_CORREL): " << compar_c << "\n";
-    cout << "compare(CV_COMP_CHISQR): " << compar_chi << "\n";
-    cout << "compare(CV_COMP_BHATTACHARYYA): " << compar_bh << "\n";
-    cout << "compare(CV_COMP_INTERSECT): " << compar_i << "\n";
-    cout << "compare(CV_COMP_HELLINGER) : " << compar_hell << "\n";
+    cv::Mat sig1(33 ,2, cv::DataType<float>::type);  
+    cv::Mat sig2(33 ,2, cv::DataType<float>::type); 
+
+    for(int i=0;i<histSize;i++){
+        float binval = a1_hist.at<float>(i);
+        sig1.at< float >(i, 0) = binval;
+        sig1.at< float >(i, 1) = i;
+        binval = a2_hist.at< float>(i);
+        sig2.at< float >(i, 0) = binval;
+        sig2.at< float >(i, 1) = i;
+    }
+    float emd = cv::EMD(sig1, sig2, CV_DIST_L2);
+
+//    double compar_c      = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
+//    double compar_chi    = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
+//    double compar_bh     = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
+//    double compar_i      = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
+//    double compar_hell   = cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
+     cout << emd << endl; //printf("similarity %5.5f %%\n", (1-emd)*100 );  
     return 0.0;
 }
 
