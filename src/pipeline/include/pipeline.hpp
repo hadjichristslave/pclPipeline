@@ -296,10 +296,8 @@ inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
     }
     float emd = cv::EMD(sig1, sig2, CV_DIST_L2);
 
-//    double compar_c      = cv::compareHist(a1_hist, a2_hist, CV_COMP_CORREL);
 //    double compar_chi    = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
 //    double compar_bh     = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
-//    double compar_i      = cv::compareHist(a1_hist, a2_hist, CV_COMP_INTERSECT);
 //    double compar_hell   = cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
      cout << emd << endl; //printf("similarity %5.5f %%\n", (1-emd)*100 );  
     return 0.0;
