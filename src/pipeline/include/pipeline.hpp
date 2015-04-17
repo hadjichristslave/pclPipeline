@@ -74,6 +74,10 @@ class Pipeline
         std::vector<float> pointNKNSquaredDistance;
         pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
         static const int    signatureLength = 33;
+        //fpfh
+        static const double neRadiusSearch   = 0.03;
+        static const double fpRadSearch      = 0.1;
+
 };
 inline Pipeline::Pipeline(void){
     int step = (int)(RGBMAX - RGBMIN)/colourBins;
@@ -151,7 +155,7 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     pcl::NormalEstimation< PointXYZRGB, PointNormal > ne;
     ne.setInputCloud (cloud);
     ne.setSearchMethod (tree);
-    ne.setRadiusSearch (.03);
+    ne.setRadiusSearch (neRadiusSearch);
     ne.compute (*normals);
 
     pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
@@ -161,7 +165,7 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
     // Use all neighbors in a sphere of radius 5cm
     // IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
-    fpfh.setRadiusSearch (0.05);
+    fpfh.setRadiusSearch (fpRadSearch);
     fpfh.compute (*fpfhs);
 
     kdtree.setInputCloud (cloud);

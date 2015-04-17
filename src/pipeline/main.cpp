@@ -31,11 +31,12 @@ typedef vector < vector < vector < int > > > colourCounts;
         ( std::ostringstream() << std::dec << x ) ).str()
 
 int main(int argc, char* argv[]){
-    bool printColourBins, printDistances = true;
+    bool printColourBins = true, printDistances = true;
     // Read the configuration file
     config_t cfg, *cf;
     const char *base = NULL;
     cf = &cfg;
+    int cloudSize, numOfBins;
     config_init(cf);
 
     if (!config_read_file(cf, "../src/pipeline/config/config.cfg")) {
@@ -47,6 +48,8 @@ int main(int argc, char* argv[]){
         return(EXIT_FAILURE);
     }
     config_lookup_string(cf, "leafSize", &base);
+    config_lookup_int(cf, "clouds" , &cloudSize);
+    config_lookup_int(cf, "numOfBins" , &numOfBins);
     double leafSize;
     leafSize  = atof(base);
     //Variables decleration
@@ -57,7 +60,7 @@ int main(int argc, char* argv[]){
     colourCounts  colCounts;
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
     // Cloud loading
-    for(int i=0;i<1;i++){
+    for(int i=0;i<cloudSize;i++){
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
         string inputFile = "../resources/pipeline/clouds/cloudsmall" + SSTR(i) + ".ply";
         io::loadPLYFile ( inputFile , *cloud );
@@ -76,10 +79,12 @@ int main(int argc, char* argv[]){
         // RGB colour spectrum will be discretized into N bins
         colCounts.push_back(pip.colourInformationExtractor(cloud));
     }
+    system("echo "" > /home/panos/Desktop/cloudData/angleDistances.csv");
+    system("echo "" > /home/panos/Desktop/cloudData/colours.csv");
     if(printColourBins){
         ofstream myfile;
         myfile.open ("/home/panos/Desktop/cloudData/colours.csv");
-        for(int i = 0; i < 125; i++) myfile<< "Bin" <<i<<",";
+        for(int i = 0; i < numOfBins; i++) myfile<< "Bin" <<i<<",";
         myfile<<"\n";
         for(int i = 0; i < colCounts.size(); i++)
             for(int j = 0; j < colCounts[i].size(); j ++){
