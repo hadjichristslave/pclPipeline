@@ -31,8 +31,7 @@ typedef vector < vector < vector < int > > > colourCounts;
         ( std::ostringstream() << std::dec << x ) ).str()
 
 int main(int argc, char* argv[]){
-    bool printColourBins, printDistances = false;
-    printColourBins                      = true;
+    bool printColourBins, printDistances = true;
     // Read the configuration file
     config_t cfg, *cf;
     const char *base = NULL;
@@ -58,7 +57,7 @@ int main(int argc, char* argv[]){
     colourCounts  colCounts;
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
     // Cloud loading
-    for(int i=0;i<5;i++){
+    for(int i=0;i<1;i++){
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
         string inputFile = "../resources/pipeline/clouds/cloudsmall" + SSTR(i) + ".ply";
         io::loadPLYFile ( inputFile , *cloud );
@@ -79,10 +78,8 @@ int main(int argc, char* argv[]){
     }
     if(printColourBins){
         ofstream myfile;
-        myfile.open ("~/Desktop/colours.csv");
-        
-        for(int i = 0; i < 125; i++)
-            myfile<< "Bin" <<i<<",";
+        myfile.open ("/home/panos/Desktop/cloudData/colours.csv");
+        for(int i = 0; i < 125; i++) myfile<< "Bin" <<i<<",";
         myfile<<"\n";
         for(int i = 0; i < colCounts.size(); i++)
             for(int j = 0; j < colCounts[i].size(); j ++){
@@ -97,7 +94,7 @@ int main(int argc, char* argv[]){
     }
     if(printDistances){
         ofstream myfile;
-        myfile.open ("~/Desktop/angleDistances.txt");
+        myfile.open ("/home/panos/Desktop/cloudData/angleDistances.csv");
         myfile<< " Kullback-Leibler, EMD, Hellinger \n";
         for(int i = 0; i < histogramValues.size(); i++)
             for(int j = 0; j < histogramValues[i].size(); j++)
