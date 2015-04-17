@@ -1,6 +1,7 @@
 #include <string> 
 #include <sstream> 
 #include <iostream> 
+#include <fstream>
 #include <vector> 
 #include <pcl/io/pcd_io.h> 
 #include <pcl/io/ply_io.h> 
@@ -30,7 +31,6 @@ typedef vector < vector < vector < int > > > colourCounts;
         ( std::ostringstream() << std::dec << x ) ).str()
 
 int main(int argc, char* argv[]){
-
     bool printColourBins, printDistances = false;
     printColourBins                      = true;
     // Read the configuration file
@@ -61,13 +61,9 @@ int main(int argc, char* argv[]){
     for(int i=0;i<5;i++){
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
         string inputFile = "../resources/pipeline/clouds/cloudsmall" + SSTR(i) + ".ply";
-        //Load the cloud named inputFile
         io::loadPLYFile ( inputFile , *cloud );
-        //removeStatisticalOutliers
         pip.removeStatisticalOutliers( cloud );
-        //Plane estimation, keep surfaces that are not plane(plain?)
         pip.planeEstimation( cloud );
-        //Downsample the cloud
         pip.downsample(cloud, leafSize);
         //ICP with cloud transformation. The ICP is performed on every cloud after the first compared to the first
         if(i>0){
@@ -77,32 +73,35 @@ int main(int argc, char* argv[]){
             clouds.push_back( * cloud );
             copyPointCloud( * cloud, * firstElem);
         }
-        //fpfh acquisition
         histogramValues.push_back( pip.fpfhEst( cloud ) );
-        // Colour information extraction
         // RGB colour spectrum will be discretized into N bins
         colCounts.push_back(pip.colourInformationExtractor(cloud));
-
     }
-
     if(printColourBins){
+        ofstream myfile;
+        myfile.open ("~/Desktop/colours.csv");
+        
         for(int i = 0; i < 125; i++)
-            cout<< "Bin" <<i<<",";
-        cout << endl;
+            myfile<< "Bin" <<i<<",";
+        myfile<<"\n";
         for(int i = 0; i < colCounts.size(); i++)
             for(int j = 0; j < colCounts[i].size(); j ++){
                 for(int k = 0 ; k < colCounts[i][j].size() ; k ++ ){
                     std::string stream = SSTR(colCounts[i][j][k]);
                     stream            += (k==colCounts[i][j].size()-1)?"":",";
-                    cout              << stream;
+                    myfile            << stream;
                 }
-                cout << endl;
+                myfile<< "\n";
             }
+        myfile.close();
     }
-    if( printDistances){
-        cout << " Kullback-Leibler, EMD, Hellinger " << endl;
+    if(printDistances){
+        ofstream myfile;
+        myfile.open ("~/Desktop/angleDistances.txt");
+        myfile<< " Kullback-Leibler, EMD, Hellinger \n";
         for(int i = 0; i < histogramValues.size(); i++)
             for(int j = 0; j < histogramValues[i].size(); j++)
-                cout << (double)histogramValues[i][j][0] << "," << (double)histogramValues[i][j][1] << "," << (double)histogramValues[i][j][2]<< endl;
+                myfile<< (double)histogramValues[i][j][0] << "," << (double)histogramValues[i][j][1] << "," << (double)histogramValues[i][j][2]<<"\n";
+        myfile.close();
     }
 }        
