@@ -29,9 +29,10 @@ typedef vector < vector < vector < int > > > colourCounts;
 #define SSTR( x ) dynamic_cast< std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
-
-
 int main(int argc, char* argv[]){
+
+    bool printColourBins, printDistances = false;
+    printColourBins                      = true;
     // Read the configuration file
     config_t cfg, *cf;
     const char *base = NULL;
@@ -83,24 +84,25 @@ int main(int argc, char* argv[]){
         colCounts.push_back(pip.colourInformationExtractor(cloud));
 
     }
-    for(int i = 0; i < 125; i++){
-        cout<< "Bin" <<i<<",";
-    }
-    cout << endl;
-    for(int i = 0; i < colCounts.size(); i++)
-        for(int j = 0; j < colCounts[i].size(); j ++){
-            for(int k = 0 ; k < colCounts[i][j].size() ; k ++ ){
-                std::string stream = SSTR(colCounts[i][j][k]);
-                stream            += (k==colCounts[i][j].size()-1)?"":",";
-                cout              << stream;
+
+    if(printColourBins){
+        for(int i = 0; i < 125; i++)
+            cout<< "Bin" <<i<<",";
+        cout << endl;
+        for(int i = 0; i < colCounts.size(); i++)
+            for(int j = 0; j < colCounts[i].size(); j ++){
+                for(int k = 0 ; k < colCounts[i][j].size() ; k ++ ){
+                    std::string stream = SSTR(colCounts[i][j][k]);
+                    stream            += (k==colCounts[i][j].size()-1)?"":",";
+                    cout              << stream;
+                }
+                cout << endl;
             }
-            cout << endl;
-        }
-
-
-
-    //   cout << " Kullback-Leibler, EMD, Hellinger " << endl;
-    //   for(int i = 0; i < histogramValues.size(); i++)
-    //       for(int j = 0; j < histogramValues[i].size(); j++)
-    //           cout << (double)histogramValues[i][j][0] << "," << (double)histogramValues[i][j][1] << "," << (double)histogramValues[i][j][2]<< endl;
+    }
+    if( printDistances){
+        cout << " Kullback-Leibler, EMD, Hellinger " << endl;
+        for(int i = 0; i < histogramValues.size(); i++)
+            for(int j = 0; j < histogramValues[i].size(); j++)
+                cout << (double)histogramValues[i][j][0] << "," << (double)histogramValues[i][j][1] << "," << (double)histogramValues[i][j][2]<< endl;
+    }
 }        

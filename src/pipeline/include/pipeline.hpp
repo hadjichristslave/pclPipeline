@@ -33,10 +33,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
-
 using namespace std;
 using namespace pcl;
-
 
 class Pipeline
 {
@@ -68,7 +66,6 @@ class Pipeline
         //KD tree search
         static const int    K             = 26;
         // Discretization of colours. each part of RGB spectrum will be discretized into colourBins parts
-        // Any value above creates too sparse a matrix to be usefull
         static const int    colourBins    = 5;
         static const int    RGBMIN        = 0;
         static const int    RGBMAX        = 255;
@@ -76,10 +73,8 @@ class Pipeline
         std::vector<int> pointIdxNKNSearch;
         std::vector<float> pointNKNSquaredDistance;
         pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
-        //Signature related
         static const int    signatureLength = 33;
 };
-
 inline Pipeline::Pipeline(void){
     int step = (int)(RGBMAX - RGBMIN)/colourBins;
     int curStep =step;
@@ -88,9 +83,6 @@ inline Pipeline::Pipeline(void){
     pointIdxNKNSearch.resize(K);
     pointNKNSquaredDistance.resize(K);
 }
-
-// Remove statistical outliers from cloud
-
 inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
     PointCloud<PointXYZRGB>::Ptr m_ptrCloud(cloud);
     StatisticalOutlierRemoval<PointXYZRGB> sor;
@@ -99,16 +91,13 @@ inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >
     sor.setStddevMulThresh (NeighborDev);
     sor.filter ( * cloud); 
 }
-// Downsample using voxel grid downsampling.  Leafzise around .1 is ok
 inline const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize){
-    //cout << "before "  << cloud->points.size() << " points"<< endl;
     pcl::VoxelGrid<PointXYZRGB> vg;
     vg.setInputCloud (cloud);
     vg.setLeafSize (leafSize, leafSize, leafSize);
     vg.setDownsampleAllData (true);
     vg.filter (*cloud); 
 }
-/// Do plane estimation on the cloud.
 inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
     PointCloud<PointXYZRGB>::Ptr cloud_f (new PointCloud< PointXYZRGB >);
     SACSegmentation<PointXYZRGB> seg;
@@ -189,16 +178,12 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     }
     return pointRelations;
 }
-// Extract colour information from the neighbors of every pixel
 inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
     // Init vars
     vector< vector< int > > colourDistributions;
     colourDistributions.resize( cloud->points.size());
     for(int i=0;i<cloud->points.size();i++)
         colourDistributions[i].resize(colourBins*colourBins*colourBins,0); 
-    // Find NN's. It must be noted that the 10 Nearest neighbors might be light years away
-    // Positionsal(XYZ) as well as ANGULAR(FPFH) and even COLOUR information will diverge from close Neighbors have
-    // and that will cause the process to cluster the points in different clusters
     kdtree.setInputCloud (cloud);
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
@@ -210,9 +195,6 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
     }
     return colourDistributions;
 }
-
-// Get the bin given the discretized RGB values 
-// More info on http://en.wikipedia.org/wiki/Color_histogram
 inline int Pipeline::getBin(int DiscR, int DiscG, int DiscB){ 
     return colourBins*colourBins*DiscR + colourBins*DiscG + DiscB;
 }
@@ -221,20 +203,16 @@ inline int Pipeline::getBinIndex(int r){
         if( r<bins[i]) return i;
     return bins.size()-1;
 }
-// The number of colourBins defines in how many values the rgb spectrum will be divided.
-// The idea is to discretize the spectrum and find to what bin each particle belongs
 inline int Pipeline::getColourBins(int r, int g, int b){
     int rbin = getBinIndex(r);
     int gbin = getBinIndex(g);
     int bbin = getBinIndex(b);
     return getBin(rbin , gbin , bbin);
 }
-
 inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLength], float histB[signatureLength]){
     const int N = sizeof(histA) / sizeof(int);
     float maxA = *std::max_element(histA, histA+N);
     float maxB = *std::max_element(histB, histB+N);
-
     cv::Mat M1 = cv::Mat(1,signatureLength, cv::DataType<float>::type , histA);
     cv::Mat M2 = cv::Mat(1,signatureLength, cv::DataType<float>::type , histB);
     int histSize = signatureLength;
@@ -250,7 +228,6 @@ inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLeng
     cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRangeB, uniform, accumulate );
     normalize(a1_hist, a1_hist,  0, 1, CV_MINMAX);
     normalize(a2_hist, a2_hist,  0, 1, CV_MINMAX);
-
     cv::Mat sig1(signatureLength ,2, cv::DataType<float>::type);  
     cv::Mat sig2(signatureLength ,2, cv::DataType<float>::type); 
     for(int i=0;i<histSize;i++){
@@ -273,7 +250,6 @@ inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLeng
     return distances;
 }
 // Two normalized vectors of the same size
-// More information regarding the divergence on http://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence
 inline float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
     float sum1 = 0,sum2 = 0;
     for(int i=0;i<mat1->rows;i++){
