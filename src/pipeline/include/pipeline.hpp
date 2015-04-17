@@ -281,7 +281,7 @@ inline float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
        sum2 += mat2->at<float>(i,0);
     }
     for(int i=0;i<mat1->rows;i++){
-        mat1->at<float>(i,0) =  sum1;
+        mat1->at<float>(i,0) /= sum1;
         mat2->at<float>(i,0) /= sum2;
     }
     float result = 0.;
