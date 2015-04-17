@@ -80,7 +80,7 @@ class Pipeline
 
 inline Pipeline::Pipeline(void){
     int step = (int)(RGBMAX - RGBMIN)/colourBins;
-    int curStep =step;
+    int curStep =step+1;
     for( int i=1;i<colourBins;i++, curStep+=step)
         bins.push_back( curStep);
 
