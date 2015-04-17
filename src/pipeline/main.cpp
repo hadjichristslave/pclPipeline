@@ -26,8 +26,12 @@
 
 typedef vector < vector < vector < int > > > colourCounts;
 
-int main(int argc, char* argv[]){
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
 
+
+
+int main(int argc, char* argv[]){
     // Read the configuration file
     config_t cfg, *cf;
     const char *base = NULL;
@@ -45,41 +49,25 @@ int main(int argc, char* argv[]){
     config_lookup_string(cf, "leafSize", &base);
     double leafSize;
     leafSize  = atof(base);
-    cout << " leaf size" << leafSize << endl;
-    // End of config parsing
-
- 
-
     //Variables decleration
     Pipeline  pip;
     vector< PointCloud< PointXYZRGB > > clouds;
     vector <vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> > > histograms;
+    vector< vector< vector< float > > > histogramValues;
     colourCounts  colCounts;
     PointCloud< PointXYZRGB >::Ptr  firstElem ( new PointCloud< PointXYZRGB > ) ;
-
     // Cloud loading
-    for(int i=0;i<1;i++){
+    for(int i=0;i<5;i++){
         PointCloud< PointXYZRGB >::Ptr cloud ( new PointCloud<PointXYZRGB> );
-        string inputFile = "../resources/pipeline/clouds/cloudsmall";
-        std::ostringstream ss;
-        ss << i;
-        inputFile       += ss.str();
-        inputFile       += ".ply";
-
+        string inputFile = "../resources/pipeline/clouds/cloudsmall" + SSTR(i) + ".ply";
         //Load the cloud named inputFile
         io::loadPLYFile ( inputFile , *cloud );
         //removeStatisticalOutliers
         pip.removeStatisticalOutliers( cloud );
-
-        cout << " downsampling with leaf size " << leafSize << endl;
-
         //Plane estimation, keep surfaces that are not plane(plain?)
         pip.planeEstimation( cloud );
-
         //Downsample the cloud
         pip.downsample(cloud, leafSize);
-
-
         //ICP with cloud transformation. The ICP is performed on every cloud after the first compared to the first
         if(i>0){
             pip.ICPTransform( cloud, firstElem );
@@ -88,15 +76,31 @@ int main(int argc, char* argv[]){
             clouds.push_back( * cloud );
             copyPointCloud( * cloud, * firstElem);
         }
-
         //fpfh acquisition
-        histograms.push_back( pip.fpfhEst( cloud ) );
-
-
+        histogramValues.push_back( pip.fpfhEst( cloud ) );
         // Colour information extraction
         // RGB colour spectrum will be discretized into N bins
         colCounts.push_back(pip.colourInformationExtractor(cloud));
 
-    }   
+    }
+    for(int i = 0; i < 125; i++){
+        cout<< "Bin" <<i<<",";
+    }
+    cout << endl;
+    for(int i = 0; i < colCounts.size(); i++)
+        for(int j = 0; j < colCounts[i].size(); j ++){
+            for(int k = 0 ; k < colCounts[i][j].size() ; k ++ ){
+                std::string stream = SSTR(colCounts[i][j][k]);
+                stream            += (k==colCounts[i][j].size()-1)?"":",";
+                cout              << stream;
+            }
+            cout << endl;
+        }
 
-}
+
+
+    //   cout << " Kullback-Leibler, EMD, Hellinger " << endl;
+    //   for(int i = 0; i < histogramValues.size(); i++)
+    //       for(int j = 0; j < histogramValues[i].size(); j++)
+    //           cout << (double)histogramValues[i][j][0] << "," << (double)histogramValues[i][j][1] << "," << (double)histogramValues[i][j][2]<< endl;
+}        

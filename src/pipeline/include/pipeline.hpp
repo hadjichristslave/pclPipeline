@@ -9,6 +9,7 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <math.h> 
 // Statistical outlier removal headers
 #include <pcl/point_types.h>
 #include <pcl/filters/statistical_outlier_removal.h>
@@ -46,12 +47,13 @@ class Pipeline
         inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
         inline const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
         inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
-        inline vector< FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33>  > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
+        inline vector< vector< float > > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
         inline vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
-        inline double histogramCompare( float histA[33], float histB[33]);
+        inline std::vector<float> histogramCompare( float histA[33], float histB[33]);
         inline int getBin(int DiscR, int DiscG, int DiscB);
         inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
+        inline float KLDivergence( cv::Mat *  mat1, cv::Mat  * mat2);
 
     private:
         // Config options for the filtes
@@ -64,10 +66,10 @@ class Pipeline
         static const int    MaxIterations = 100;
         static const double DistThreshold = .02;
         //KD tree search
-        static const int    K             = 10;
+        static const int    K             = 26;
         // Discretization of colours. each part of RGB spectrum will be discretized into colourBins parts
         // Any value above creates too sparse a matrix to be usefull
-        static const int    colourBins    = 4;
+        static const int    colourBins    = 5;
         static const int    RGBMIN        = 0;
         static const int    RGBMAX        = 255;
         vector<int> bins;
@@ -103,13 +105,13 @@ inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >
 // Downsample using voxel grid downsampling 
 // Leafzise around .1 is ok
 inline const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize){
-    cout << "before "  << cloud->points.size() << " points"<< endl;
+    //cout << "before "  << cloud->points.size() << " points"<< endl;
     pcl::VoxelGrid<PointXYZRGB> vg;
     vg.setInputCloud (cloud);
     vg.setLeafSize (leafSize, leafSize, leafSize);
     vg.setDownsampleAllData (true);
     vg.filter (*cloud); 
-    cout << cloud->points.size () << " points\n";
+    //cout << cloud->points.size () << " points\n";
 }
 /// Do plane estimation on the cloud.
 inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
@@ -160,8 +162,8 @@ inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, con
 }
 
 // Fast point feature histogram for pointcloud cloud
-inline vector < FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
-
+inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
+    vector< vector < float > > pointRelations;
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
 
@@ -190,23 +192,17 @@ inline vector < FPFHEstimation<PointXYZRGB, PointNormal, FPFHSignature33> >  Pip
         float currentHist[33];
         for (int o=0;o<33;o++)
             currentHist[o] = fpfhs->points[i].histogram[o];
-//        cout << " comparing histogram : "  << fpfhs->points[i] << endl << endl;
         if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
             for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
                 if (j==i)
                     continue;
-//                cout << " i is : "  << i << " j is " << j << endl << endl;
                 float neighborHist[33];
-//                cout<< " with histogram : " << fpfhs->points[ pointIdxNKNSearch[j]] << endl <<  endl;
                 for(int o=0;o<33;o++)
                     neighborHist[o] = fpfhs->points[ pointIdxNKNSearch[j]].histogram[o];
-                histogramCompare(currentHist, neighborHist);
+                pointRelations.push_back(histogramCompare(currentHist, neighborHist));
             }
     }
-
-    vector < FPFHEstimation< PointXYZRGB, PointNormal, FPFHSignature33 > > vec;
-    return vec;
-    //return fpfh;
+    return pointRelations;
 }
 // Extract colour information from the neighbors of every pixel
 inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
@@ -215,11 +211,10 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
     colourDistributions.resize( cloud->points.size());
     for(int i=0;i<cloud->points.size();i++)
         colourDistributions[i].resize(colourBins*colourBins*colourBins,0); 
-
-
     //Find NN's. It must be noted that the 10 Nearest neighbors might be light years away
     // Positionsal(XYZ) as well as ANGULAR(FPFH) and even COLOUR information will diverge from close Neighbors have
     // and that will cause the process to cluster the points in different clusters
+
     kdtree.setInputCloud (cloud);
 
     for(int i=0;i< cloud->points.size();i++){
@@ -253,23 +248,20 @@ inline int Pipeline::getColourBins(int r, int g, int b){
     return getBin(rbin , gbin , bbin);
 }
 
-inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
+inline std::vector<float>  Pipeline::histogramCompare( float histA[33], float histB[33]){
     const int N = sizeof(histA) / sizeof(int);
     float maxA = *std::max_element(histA, histA+N);
     float maxB = *std::max_element(histB, histB+N);
-    float max = maxA>maxB?maxA:maxB;
 
-    for(int i=0;i<33;i++){  
+    for(int i=0;i<33;i++){
       if(histA[i] != histA[i])
           histA[i] =0.0;
       if(histB[i] != histB[i])
           histB[i] =0.0;
-  }
-
+    }  
     cv::Mat M1 = cv::Mat(1,33, cv::DataType<float>::type , histA);
     cv::Mat M2 = cv::Mat(1,33, cv::DataType<float>::type , histB);
-
-    int histSize = 33;;
+    int histSize = 33;
     float rangeA[] = {0, maxA+1};
     float rangeB[] = {0, maxB+1};
     const float* histRangeA = {rangeA};
@@ -277,15 +269,17 @@ inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
     bool uniform = true;
     bool accumulate = false;
     cv::Mat a1_hist, a2_hist;
-
+    cv::Mat kl1_hist, kl2_hist;
+    // normalization means SQRT( sum(component*component)) = 1A
     cv::calcHist(&M1, 1, 0, cv::Mat(), a1_hist, 1, &histSize, &histRangeA, uniform, accumulate );
-    normalize(a1_hist, a1_hist,  0, 1, CV_MINMAX);
     cv::calcHist(&M2, 1, 0, cv::Mat(), a2_hist, 1, &histSize, &histRangeB, uniform, accumulate );
+    //------------------------------------------------------------//
+    normalize(a1_hist, a1_hist,  0, 1, CV_MINMAX);
     normalize(a2_hist, a2_hist,  0, 1, CV_MINMAX);
 
     cv::Mat sig1(33 ,2, cv::DataType<float>::type);  
     cv::Mat sig2(33 ,2, cv::DataType<float>::type); 
-
+    
     for(int i=0;i<histSize;i++){
         float binval = a1_hist.at<float>(i);
         sig1.at< float >(i, 0) = binval;
@@ -294,13 +288,12 @@ inline double Pipeline::histogramCompare( float histA[33], float histB[33]){
         sig2.at< float >(i, 0) = binval;
         sig2.at< float >(i, 1) = i;
     }
-    float emd = cv::EMD(sig1, sig2, CV_DIST_L2);
 
-//    double compar_chi    = cv::compareHist(a1_hist, a2_hist, CV_COMP_CHISQR);
-//    double compar_bh     = cv::compareHist(a1_hist, a2_hist, CV_COMP_BHATTACHARYYA);
-//    double compar_hell   = cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
-     cout << emd << endl; //printf("similarity %5.5f %%\n", (1-emd)*100 );  
-    return 0.0;
-}
-
-#endif 
+    float emd           = cv::EMD(sig1, sig2, CV_DIST_L2);
+    float compar_hell   = (float)cv::compareHist(a1_hist, a2_hist, CV_COMP_HELLINGER );
+    // WARNING!!! KLDivergence changegs the values of the histograms so it should be called last.
+    float kld =  KLDivergence( &a1_hist, &a2_hist);
+    
+    vector<float> distances;
+    distances.push_back(kld); 
+    distances.push_back(emd);endif 
