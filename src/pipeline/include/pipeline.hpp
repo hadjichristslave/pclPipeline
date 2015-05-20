@@ -52,6 +52,7 @@ class Pipeline
         inline int getColourBins(int r , int g , int b);
         inline int getBinIndex(int r);
         inline float KLDivergence( cv::Mat *  mat1, cv::Mat  * mat2);
+        inline void normalizeVec( vector < int > inputVec);
 
     private:
         // Config options for the filtes
@@ -66,7 +67,7 @@ class Pipeline
         //KD tree search
         static const int    K             = 26;
         // Discretization of colours. each part of RGB spectrum will be discretized into colourBins parts
-        static const int    colourBins    = 5;
+        static const int    colourBins    = 3;
         static const int    RGBMIN        = 0;
         static const int    RGBMAX        = 255;
         vector<int> bins;
@@ -99,7 +100,7 @@ inline const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, do
     pcl::VoxelGrid<PointXYZRGB> vg;
     vg.setInputCloud (cloud);
     vg.setLeafSize (leafSize, leafSize, leafSize);
-    vg.setDownsampleAllData (true);
+    vg.setDownsampleAllData (false);
     vg.filter (*cloud); 
 }
 inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
@@ -139,11 +140,11 @@ inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud,
     icp.setInputTarget(target_cloud);
     PointCloud< PointXYZRGB > othercloud;
     icp.align(othercloud);
-    copyPointCloud( othercloud, * cloud );
+    copyPointCloud(othercloud,*cloud);
 }
 inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-    viewer->addPointCloud< pcl::PointXYZRGB > ( cloud ,name );
+    viewer->addPointCloud< pcl::PointXYZRGB > (cloud,name);
     viewer->spin();
 }
 // Fast point feature histogram for pointcloud cloud
@@ -151,23 +152,21 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     vector< vector < float > > pointRelations;
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
-    pcl::copyPointCloud (*cloud, *normals);
+    pcl::copyPointCloud (*cloud,*normals);
     pcl::NormalEstimation< PointXYZRGB, PointNormal > ne;
     ne.setInputCloud (cloud);
-    ne.setSearchMethod (tree);
-    ne.setRadiusSearch (neRadiusSearch);
+    ne.setSearchMethod(tree);
+    ne.setRadiusSearch(neRadiusSearch);
     ne.compute (*normals);
-
     pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
-    fpfh.setInputCloud (cloud);
-    fpfh.setInputNormals (normals);
-    fpfh.setSearchMethod (tree);
+    fpfh.setInputCloud(cloud);
+    fpfh.setInputNormals(normals);
+    fpfh.setSearchMethod(tree);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
     // Use all neighbors in a sphere of radius 5cm
     // IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
     fpfh.setRadiusSearch (fpRadSearch);
     fpfh.compute (*fpfhs);
-
     kdtree.setInputCloud (cloud);
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
@@ -272,5 +271,13 @@ inline float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
                 result += mat1->at<float>(i,0) * log(ratio); 
         }
     return result;
+}
+inline void Pipeline::normalizeVec( vector< int > inputVec){
+   float sum = 0;
+   for(int i = 0; i < inputVec.size(); i++) sum+= inputVec[i]; 
+   float normalized;
+   for(int i=0;i< inputVec.size(); i++){
+       normalized = (float)inputVec[i]/sum;
+   }
 }
 #endif 
