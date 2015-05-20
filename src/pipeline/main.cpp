@@ -107,8 +107,6 @@ int main(int argc, char* argv[]){
             //FIXME: Note that this is running in a separate thread from viewerPsycho
             //and you should guard against race conditions yourself...
 //        }
-        for(int k=0;k<cloud->points.size();k++)
-            //cout <<  cloud->points[k].x  << "," <<  cloud->points[k].y  <<  "," << cloud->points[k].z << ","<< (int)cloud->points[k].r << "," << (int)cloud->points[k].g << "," << (int)cloud->points[k].b<< endl;
         cout << " cloud size before ransac " << cloud->size() <<endl;
         pip.planeEstimation( cloud );
         cout << " cloud size after ransac" << cloud->size()<< endl;
