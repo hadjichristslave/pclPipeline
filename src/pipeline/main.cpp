@@ -89,9 +89,11 @@ int main(int argc, char* argv[]){
             cloud->points[lines].b = bp;
             lines++;
         }
+        cout << "initial " << cloud->points.size()<< endl;
         pip.downsample(cloud, leafSize);
+        cout <<  " downsamp " << cloud->points.size() << endl;
         pip.removeStatisticalOutliers( cloud );
-
+        cout << " stat outs" << cloud->points.size() << endl;
         //pcl::visualization::CloudViewer viewer("Cloud Viewer");
 //        viewer.showCloud(cloud);
 

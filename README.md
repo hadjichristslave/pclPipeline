@@ -10,3 +10,7 @@ As the pipeline is finishes I will add a description on how to use
 #Dependencies
 The package is compiled under -std=c+11 flag
 Pcl library is used for point cloud filtering
+
+#Utility
+
+This is the package used to parse point cloud data to the format the SMC project expects.

@@ -59,11 +59,11 @@ class Pipeline
         static const bool   debug         = true;
         //stat outlier removal
         static const int    Neighbors     = 50;
-        static const double NeighborDev   = 1.5;
+        static const double NeighborDev   = .1;
         //Plane estimation
         static const double planeCoverage = .3;
-        static const int    MaxIterations = 100;
-        static const double DistThreshold = .02;
+        static const int    MaxIterations = 50;
+        static const double DistThreshold = .005;
         //KD tree search
         static const int    K             = 26;
         // Discretization of colours. each part of RGB spectrum will be discretized into colourBins parts
@@ -89,9 +89,8 @@ inline Pipeline::Pipeline(void){
     pointNKNSquaredDistance.resize(K);
 }
 inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
-    PointCloud<PointXYZRGB>::Ptr m_ptrCloud(cloud);
     StatisticalOutlierRemoval<PointXYZRGB> sor;
-    sor.setInputCloud (m_ptrCloud);
+    sor.setInputCloud (cloud);
     sor.setMeanK (Neighbors);
     sor.setStddevMulThresh (NeighborDev);
     sor.filter ( * cloud); 
