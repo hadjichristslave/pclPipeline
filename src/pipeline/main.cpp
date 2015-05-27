@@ -42,6 +42,7 @@ int main(int argc, char* argv[]){
     std::ifstream infilz("/home/panos/Desktop/new.txt");
 
     while (infile >> xp >> yp>> zp>> rp>> gp>> bp){lines++;}
+    cout << " number of lines " << lines << endl;
     //cout << " Processing number of lines " << lines;
     // Read the configuration file
     config_t cfg, *cf;
