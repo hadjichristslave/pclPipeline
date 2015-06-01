@@ -27,6 +27,7 @@
 #include <Eigen/Core>
 // FPFH headers
 #include <pcl/features/fpfh.h>
+#include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d.h>
 #include <opencv2/opencv.hpp>
 // Nearest search
@@ -148,7 +149,7 @@ inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, con
 }
 // Fast point feature histogram for pointcloud cloud
 inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
-    vector< vector < float > > pointRelations;
+    vector< vector <  float > > pointRelations;
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
     pcl::copyPointCloud (*cloud,*normals);
@@ -157,7 +158,8 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     ne.setSearchMethod(tree);
     ne.setRadiusSearch(neRadiusSearch);
     ne.compute (*normals);
-    pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
+    pcl::FPFHEstimationOMP<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
+    fpfh.setNumberOfThreads(10);
     fpfh.setInputCloud(cloud);
     fpfh.setInputNormals(normals);
     fpfh.setSearchMethod(tree);
