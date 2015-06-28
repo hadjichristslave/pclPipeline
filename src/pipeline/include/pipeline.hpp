@@ -40,30 +40,30 @@ using namespace pcl;
 class Pipeline
 {
     public:
-        inline Pipeline();
-        inline const void view( const PointCloud< PointXYZRGB >::Ptr cloud , const string name);
-        inline const void removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud);
-        inline const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
-        inline const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
-        inline const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
-        inline vector< vector< float > > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
-        inline vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
-        inline std::vector<float> histogramCompare( float histA[33], float histB[33]);
-        inline int getBin(int DiscR, int DiscG, int DiscB);
-        inline int getColourBins(int r , int g , int b);
-        inline int getBinIndex(int r);
-        inline float KLDivergence( cv::Mat *  mat1, cv::Mat  * mat2);
-        inline void normalizeVec( vector < int > inputVec);
+         Pipeline();
+         const void view( const PointCloud< PointXYZRGB >::Ptr cloud , const string name);
+         const void removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud);
+         const void planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud);
+         const void downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize);
+         const void ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud);
+         vector< vector< float > > fpfhEst( const PointCloud< PointXYZRGB >::Ptr cloud);
+         vector< vector< int >  > colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud);
+         std::vector<float> histogramCompare( float histA[33], float histB[33]);
+         int getBin(int DiscR, int DiscG, int DiscB);
+         int getColourBins(int r , int g , int b);
+         int getBinIndex(int r);
+         float KLDivergence( cv::Mat *  mat1, cv::Mat  * mat2);
+         void normalizeVec( vector < int > inputVec);
 
     private:
         // Config options for the filtes
         static const bool   debug         = true;
         //stat outlier removal
-        static const int    Neighbors     = 50;
+        static const int    Neighbors     = 25;
         static const double NeighborDev   = .1;
         //Plane estimation
         static const double planeCoverage = .3;
-        static const int    MaxIterations = 50;
+        static const int    MaxIterations = 25;
         static const double DistThreshold = .005;
         //KD tree search
         static const int    K             = 26;
@@ -77,11 +77,11 @@ class Pipeline
         pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
         static const int    signatureLength = 33;
         //fpfh
-        static const double neRadiusSearch   = 0.03;
-        static const double fpRadSearch      = 0.1;
+        static const double neRadiusSearch   = 0.02;
+        static const double fpRadSearch      = 0.04;
 
 };
-inline Pipeline::Pipeline(void){
+ Pipeline::Pipeline(void){
     int step = (int)(RGBMAX - RGBMIN)/colourBins;
     int curStep =step;
     for( int i=1;i<colourBins;i++, curStep+=step)
@@ -89,21 +89,21 @@ inline Pipeline::Pipeline(void){
     pointIdxNKNSearch.resize(K);
     pointNKNSquaredDistance.resize(K);
 }
-inline const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
+ const void Pipeline::removeStatisticalOutliers( PointCloud< PointXYZRGB >::Ptr  cloud ){
     StatisticalOutlierRemoval<PointXYZRGB> sor;
     sor.setInputCloud (cloud);
     sor.setMeanK (Neighbors);
     sor.setStddevMulThresh (NeighborDev);
     sor.filter ( * cloud); 
 }
-inline const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize){
+ const void Pipeline::downsample( PointCloud< PointXYZRGB >::Ptr cloud, double leafSize){
     pcl::VoxelGrid<PointXYZRGB> vg;
     vg.setInputCloud (cloud);
     vg.setLeafSize (leafSize, leafSize, leafSize);
     vg.setDownsampleAllData (false);
     vg.filter (*cloud); 
 }
-inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
+ const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr cloud){
     PointCloud<PointXYZRGB>::Ptr cloud_f (new PointCloud< PointXYZRGB >);
     SACSegmentation<PointXYZRGB> seg;
     PointIndices::Ptr inliers (new PointIndices);
@@ -134,7 +134,7 @@ inline const void Pipeline::planeEstimation( PointCloud< PointXYZRGB >::Ptr clou
     }
 }
 // Perform ICP on cloud ocmpared to the first one in the batch
-inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud ){
+ const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud, const  PointCloud< PointXYZRGB >::Ptr target_cloud ){
     IterativeClosestPoint< PointXYZRGB, PointXYZRGB > icp;
     icp.setInputSource(cloud);
     icp.setInputTarget(target_cloud);
@@ -142,13 +142,13 @@ inline const void  Pipeline::ICPTransform( PointCloud< PointXYZRGB >::Ptr cloud,
     icp.align(othercloud);
     copyPointCloud(othercloud,*cloud);
 }
-inline const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
+ const void Pipeline::view(const PointCloud< PointXYZRGB >::Ptr cloud, const string name){
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
     viewer->addPointCloud< pcl::PointXYZRGB > (cloud,name);
     viewer->spin();
 }
 // Fast point feature histogram for pointcloud cloud
-inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
+ vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZRGB>::Ptr cloud){
     vector< vector <  float > > pointRelations;
     PointCloud< PointNormal >::Ptr normals (new PointCloud< PointNormal > );
     pcl::search::KdTree< PointXYZRGB >::Ptr tree (new pcl::search::KdTree< PointXYZRGB >);
@@ -182,7 +182,7 @@ inline vector< vector< float >  >  Pipeline::fpfhEst( const PointCloud< PointXYZ
     }
     return pointRelations;
 }
-inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
+ vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
     // Init vars
     vector< vector< int > > colourDistributions;
     colourDistributions.resize( cloud->points.size());
@@ -199,21 +199,21 @@ inline vector< vector<int> >  Pipeline::colourInformationExtractor( const PointC
     }
     return colourDistributions;
 }
-inline int Pipeline::getBin(int DiscR, int DiscG, int DiscB){ 
+ int Pipeline::getBin(int DiscR, int DiscG, int DiscB){ 
     return colourBins*colourBins*DiscR + colourBins*DiscG + DiscB;
 }
-inline int Pipeline::getBinIndex(int r){
+ int Pipeline::getBinIndex(int r){
     for(int i=0;i<bins.size();i++)
         if( r<bins[i]) return i;
-    return bins.size()-1;
+    return bins.size();
 }
-inline int Pipeline::getColourBins(int r, int g, int b){
+ int Pipeline::getColourBins(int r, int g, int b){
     int rbin = getBinIndex(r);
     int gbin = getBinIndex(g);
     int bbin = getBinIndex(b);
     return getBin(rbin , gbin , bbin);
 }
-inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLength], float histB[signatureLength]){
+ std::vector<float>  Pipeline::histogramCompare( float histA[signatureLength], float histB[signatureLength]){
     const int N = sizeof(histA) / sizeof(int);
     float maxA = *std::max_element(histA, histA+N);
     float maxB = *std::max_element(histB, histB+N);
@@ -238,8 +238,8 @@ inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLeng
         float binval = a1_hist.at<float>(i);
         sig1.at< float >(i, 0) = binval;
         sig1.at< float >(i, 1) = i;
-        binval = a2_hist.at< float>(i);
-        sig2.at< float >(i, 0) = binval;
+        float binval2 = a2_hist.at< float>(i);
+        sig2.at< float >(i, 0) = binval2;
         sig2.at< float >(i, 1) = i;
     }
     float emd           = cv::EMD(sig1, sig2, CV_DIST_L2);
@@ -254,7 +254,7 @@ inline std::vector<float>  Pipeline::histogramCompare( float histA[signatureLeng
     return distances;
 }
 // Two normalized vectors of the same size
-inline float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
+ float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
     float sum1 = 0,sum2 = 0;
     for(int i=0;i<mat1->rows;i++){
        sum1 += mat1->at<float>(i,0);
@@ -273,12 +273,10 @@ inline float Pipeline::KLDivergence( cv::Mat * mat1, cv::Mat * mat2){
         }
     return result;
 }
-inline void Pipeline::normalizeVec( vector< int > inputVec){
+ void Pipeline::normalizeVec( vector< int > inputVec){
    float sum = 0;
    for(int i = 0; i < inputVec.size(); i++) sum+= inputVec[i]; 
    float normalized;
    for(int i=0;i< inputVec.size(); i++){
        normalized = (float)inputVec[i]/sum;
    }
-}
-#endif 

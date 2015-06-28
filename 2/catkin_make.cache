@@ -1,0 +1,2 @@
+
+-DCATKIN_DEVEL_PREFIX=/home/panos/Desktop/pcl/devel -DCMAKE_INSTALL_PREFIX=/home/panos/Desktop/pcl/install -G Unix Makefiles
