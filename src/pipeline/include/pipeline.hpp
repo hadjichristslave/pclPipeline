@@ -1,7 +1,9 @@
 #ifndef PIPELINE_H 
+
+
 #define PIPELINE_H
 
-
+#endif
 #include <typeinfo>
 // Cloud viewing headers
 #include <pcl/visualization/cloud_viewer.h>
@@ -172,14 +174,30 @@ class Pipeline
     for(int i=0;i< cloud->points.size();i++){
         pcl::PointXYZRGB searchPoint = cloud->points[i];
         float currentHist[signatureLength];
+        vector< vector< float > > vecie;
         for (int o=0;o<signatureLength;o++) currentHist[o] = fpfhs->points[i].histogram[o];
         if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+            
             for (size_t j = 0; j < pointIdxNKNSearch.size (); ++j){
                 float neighborHist[signatureLength];
                 for(int o=0;o<signatureLength;o++) neighborHist[o] = fpfhs->points[ pointIdxNKNSearch[j]].histogram[o];
-                pointRelations.push_back(histogramCompare(currentHist, neighborHist));
+                vecie.push_back(histogramCompare(currentHist, neighborHist));
             }
+            vector< float > average;
+            float kl=0;
+            float emd=0;
+            float hell=0;
+            for(int k = 0  ;k< vecie.size(); k++){
+                kl+=vecie[k][0];
+                emd+=vecie[k][1];           
+                hell+=vecie[k][2];
+            }
+            average.push_back(kl/vecie.size());
+            average.push_back(emd/vecie.size());
+            average.push_back(hell/vecie.size());
+            pointRelations.push_back(average);
     }
+    cout << pointRelations.size() << "-" << cloud->points.size() <<endl;
     return pointRelations;
 }
  vector< vector<int> >  Pipeline::colourInformationExtractor( const PointCloud< PointXYZRGB >::Ptr cloud){
@@ -280,3 +298,5 @@ class Pipeline
    for(int i=0;i< inputVec.size(); i++){
        normalized = (float)inputVec[i]/sum;
    }
+
+ } 
